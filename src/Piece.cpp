@@ -189,7 +189,8 @@ bool Piece::isThreateningKing(const Square &curSq, const Square &kingSq,
                               const Board &board) const {
   if (auto king = dynamic_cast<const King *>(curSq.getPiecePtr()))
     return false;
-  std::vector<Pos> list = getAttackPositions(curSq.getPos(), board);
+  std::vector<Pos> list =
+      curSq.getPiece().getAttackPositions(curSq.getPos(), board);
   for (auto attackPos : list) {
     if (attackPos == kingSq.getPos())
       return true;

@@ -28,7 +28,7 @@ Board::Board()
   // rank 2 black pawns
   row = 1;
   for (int col = 0; col < 8; col++) {
-    arr[row * 8 + col] = new Square(nullptr, {row, col});
+    arr[row * 8 + col] = new Square(new Pawn(PieceColor::BLACK), {row, col});
   }
 
   // rank 3-6 empty spaces
