@@ -1,11 +1,5 @@
 #include "Board.hpp"
 #include "Exception.hpp"
-#include "Graphics.hpp"
-#include "Input.hpp"
-#include "Square.hpp"
-#include <iostream>
-#include <ostream>
-
 class Game {
 private:
   Board board;
@@ -14,7 +8,7 @@ private:
   void renderBoard() const;
   void gameEnd() const;
   // helper function for catching exceptions
-  static void catchExpt(std::ostream &, Exception);
+  static void catchExpt(Exception);
 
 public:
   Game();

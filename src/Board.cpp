@@ -9,7 +9,6 @@
 #include "Rook.hpp"
 #include "Square.hpp"
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 
 Board::Board()
@@ -29,7 +28,7 @@ Board::Board()
   // rank 2 black pawns
   row = 1;
   for (int col = 0; col < 8; col++) {
-    arr[row * 8 + col] = new Square(new Pawn(PieceColor::BLACK), {row, col});
+    arr[row * 8 + col] = new Square(nullptr, {row, col});
   }
 
   // rank 3-6 empty spaces
@@ -65,8 +64,7 @@ Board::Board(const Board &other)
 
 int Board::distance(const Move &move) {
   Pos diff = move.from.getPos() - move.to.getPos();
-  return static_cast<int>(
-      std::sqrt(std::pow(diff.row, 2) + std::pow(diff.col, 2)));
+  return std::sqrt(std::pow(diff.row, 2) + std::pow(diff.col, 2));
 }
 bool Board::isPosOutOfBounds(Pos p) {
   return (p.row < 0 || p.row >= 8 || p.col < 0 || p.col >= 8);
@@ -190,23 +188,17 @@ bool Board::isMoveAvailable() const {
   return false;
 }
 
-bool Board::isCapturable(PieceColor color, const Square &sq) const {
-  for (int i = 0; i < 64; i++) {
-    Square curSq(getSquareAt({i / 8, i % 8}));
-    if (curSq.isEmpty())
-      continue;
-    else if (curSq.getPiece().getColor() != color)
-      continue;
-    else if (auto king = dynamic_cast<const King *>(curSq.getPiecePtr()))
+bool Board::isCapturable(PieceColor enemyColor, const Square &targetSq) const {
+  for (const Square *sqPtr : arr) {
+    if (sqPtr->isEmpty() || sqPtr->getPiece().getColor() != enemyColor)
       continue;
 
-    std::vector<Move> list = curSq.getPiece().getValidMovesList(curSq, *this);
-    for (int j = 0; j < list.size(); j++) {
-      if (!list[i].capture)
-        continue;
-      else if (list[i].to == sq)
+    std::vector<Pos> list =
+        sqPtr->getPiece().getAttackPositions(sqPtr->getPos(), *this);
+    for (auto attackPos : list)
+      if (attackPos == targetSq.getPos()) {
         return true;
-    }
+      }
   }
   return false;
 }
@@ -252,51 +244,42 @@ bool Board::canMoveRemoveCheck(const Move &move) const {
   Move moveCopy(posFrom, posTo, boardCopy);
 
   // simulate the move in the copy
-  try {
-    moveCopy.from.getPiece().move(moveCopy, boardCopy);
-  } catch (InvalidMove e) {
-    return false;
-  }
-  Square kingSqCopy(boardCopy.getSquareAt(boardCopy.getKingPos(kingColor)));
-  if (auto king = dynamic_cast<King *>(kingSqCopy.getPiecePtr())) {
-    return !king->isCheck();
-  } else
-    throw std::invalid_argument(
-        "invalid kingSq provided. king not found on this square");
+  moveCopy.from.getPiece().makeMove(moveCopy, boardCopy);
+  Square &kingSqCopy(boardCopy.getSquareAt(boardCopy.getKingPos(kingColor)));
+  auto kingCopy = dynamic_cast<King *>(kingSqCopy.getPiecePtr());
+  kingCopy->updateCheckStatus(kingSqCopy, boardCopy);
+  return !kingCopy->isCheck();
 }
 
 bool Board::isCheckMate(PieceColor color) const {
-  Pos kingPos = getKingPos(color);
-  Square kingSq = getSquareAt(kingPos);
+  const Square &kingSq = getSquareAt(getKingPos(color));
   auto king = dynamic_cast<const King *>(kingSq.getPiecePtr());
   if (!king->isCheck())
     return false;
-  for (int i = 0; i < 64; i++) {
-    Square curSq(getSquareAt({i / 8, i % 8}));
-    if (curSq.isEmpty() ||
-        curSq.getPiece().getColor() != kingSq.getPiece().getColor())
+  for (auto sqPtr : arr) {
+    if (sqPtr->isEmpty() || sqPtr->getPiece().getColor() != color)
       continue;
-    std::vector<Move> list =
-        curSq.getPiecePtr()->getValidMovesList(curSq, *this);
-    for (int j = 0; j < list.size(); j++) {
-      if (canMoveRemoveCheck(list[j]))
-        return false;
-    }
+    std::vector<Move> list = sqPtr->getPiece().getLegalMoves(*sqPtr, *this);
+    if (list.size() > 0)
+      return false;
   }
   return true;
 }
 
 void Board::markAvailableMoves(const Square &sq) {
-  std::vector<Move> moves = sq.getPiece().getValidMovesList(sq, *this);
+  std::vector<Move> moves = sq.getPiece().getLegalMoves(sq, *this);
   for (auto move : moves) {
     Square &markSq(getSquareAt(move.to.getPos()));
-    markSq.setLabel((markSq.isEmpty()) ? CAN_MOVE : CAN_CAPTURE);
+    markSq.setLabel((move.capture) ? CAN_CAPTURE : CAN_MOVE);
   }
 }
 
 void Board::selectPos(Pos p) {
+  PieceColor color = (whiteToMove) ? PieceColor::WHITE : PieceColor::BLACK;
   if (getSquareAt(p).isEmpty())
     throw InvalidPos("selection failed. cannot select an empty square");
+  else if (getSquareAt(p).getPiece().getColor() != color)
+    throw InvalidPos("selection failed. cannot select an enemy piece.");
   selected = true;
   selectedPos = p;
   markAvailableMoves(getSquareAt(p));
@@ -307,23 +290,30 @@ void Board::unselect() {
   selectedPos = {-1, -1};
   for (int i = 0; i < 64; i++) {
     Square &curSq(getSquareAt({i / 8, i % 8}));
-    if (curSq.isEmpty() && !curSq.isLabelEmpty())
+    if (curSq.getLabel() == CAN_MOVE)
       curSq.setLabel(EMPTY);
+    else if (curSq.getLabel() == CAN_CAPTURE)
+      curSq.setLabel(curSq.getPiece().getIcon());
   }
 }
 
 void Board::updateStatus() {
 
-  // update check statuses of both kings
-  Square enemyKingSq(getSquareAt((whiteToMove) ? blackKingPos : whiteKingPos));
+  Square &kingSq(getSquareAt((whiteToMove) ? whiteKingPos : blackKingPos));
+  Square &enemyKingSq(getSquareAt((whiteToMove) ? blackKingPos : whiteKingPos));
+  auto king = dynamic_cast<King *>(kingSq.getPiecePtr());
   auto enemyKing = dynamic_cast<King *>(enemyKingSq.getPiecePtr());
+
+  // update check statuses of both kings
+  king->updateCheckStatus(kingSq, *this);
   enemyKing->updateCheckStatus(enemyKingSq, *this);
 
   // update game status
-  if (isCheckMate(enemyKingSq.getPiece().getColor()))
+  if (isCheckMate(enemyKing->getColor())) {
     status = (whiteToMove) ? Status::WHITE_WON : Status::BLACK_WON;
-  else if (!isMoveAvailable())
+  } else if (!isMoveAvailable()) {
     status = Status::STALEMATE;
+  }
 }
 
 void Board::move(const Move &move) {
@@ -332,16 +322,29 @@ void Board::move(const Move &move) {
 }
 
 bool Board::hasPinUpdated(Pos p, Square &sq, Pin pin) {
+  const Square &curSq(getSquareAt(p));
+  bool update;
   if (isPosOutOfBounds(p))
     return true;
-  else if (getSquareAt(p).isEmpty())
-    return false;
-  else if (getSquareAt(p).getPiece().getColor() == sq.getPiece().getColor())
-    return true;
+  else if (curSq.isEmpty())
+    update = false;
+  else if (curSq.getPiece().getColor() == sq.getPiece().getColor())
+    update = true;
   else {
-    sq.getPiece().setPin(pin);
-    return true;
+    update = true;
+    if (pin == Pin::HORIZONTAL || pin == Pin::VERTICAL) {
+      if (dynamic_cast<const Rook *>(curSq.getPiecePtr()) != nullptr ||
+          dynamic_cast<const Queen *>(curSq.getPiecePtr()) != nullptr) {
+        sq.getPiece().setPin(pin);
+      }
+    } else if (pin == Pin::DIAGONAL_MAIN || pin == Pin::DIAGONAL_ANTI) {
+      if (dynamic_cast<const Bishop *>(curSq.getPiecePtr()) != nullptr ||
+          dynamic_cast<const Queen *>(curSq.getPiecePtr()) != nullptr) {
+        sq.getPiece().setPin(pin);
+      }
+    }
   }
+  return update;
 }
 
 int moveDir(int num) {

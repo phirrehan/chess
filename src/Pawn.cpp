@@ -16,46 +16,57 @@ Pawn::Pawn(const Pawn &other)
       enPassant(false) {}
 Pawn *Pawn::clone() const { return new Pawn(*this); }
 
-std::vector<Pos> Pawn::getPlausiblePosList(const Square &sq,
-                                           const Board &board) const {
-  int moveDir = (this->isWhite()) ? -1 : +1;
-  int enPassantRow = (this->isWhite()) ? 4 : 3;
+std::vector<Pos> Pawn::getAttackPositions(const Pos &p,
+                                          const Board &board) const {
+  int rowDir = (isWhite()) ? -1 : 1;
+  int enPassantRow = (isWhite()) ? 3 : 4;
 
-  // add 1 square ahead
-  std::vector<Pos> list = {sq.getPos() + Pos(1 * moveDir, 0)};
-  // add first move 2 squares ahead
-  if (firstMove &&
-      board.getSquareAt(sq.getPos() + Pos(2 * moveDir, 0)).isEmpty())
-    list.push_back(sq.getPos() + Pos(2 * moveDir, 0));
-
+  std::vector<Pos> list;
   // add capture positions
   // note that left and right are relative to white
-  Pos leftDiagPos(sq.getPos() + Pos(1 * moveDir, -1));
-  Pos rightDiagPos(sq.getPos() + Pos(1 * moveDir, 1));
+  Pos leftDiagPos(p + Pos(1 * rowDir, -1));
+  Pos rightDiagPos(p + Pos(1 * rowDir, 1));
 
   if (!Board::isPosOutOfBounds(leftDiagPos)) {
-    Square leftDiagSq(board.getSquareAt(leftDiagPos));
-    if (!leftDiagSq.isEmpty() && leftDiagSq.getPiece().getColor() != color)
-      list.push_back(leftDiagSq.getPos());
+    list.push_back(leftDiagPos);
   }
   if (!Board::isPosOutOfBounds(rightDiagPos)) {
-    Square rightDiagSq(board.getSquareAt(rightDiagPos));
-    if (!rightDiagSq.isEmpty() && rightDiagSq.getPiece().getColor() != color)
-      list.push_back(rightDiagSq.getPos());
+    list.push_back(rightDiagPos);
   }
 
   // add enpassant capture positions
-  if (sq.getPos().row == enPassantRow) {
-    Square leftSq = board.getSquareAt(sq.getPos() + Pos(0, -1));
-    Square rightSq = board.getSquareAt(sq.getPos() + Pos(0, 1));
+  if (p.row == enPassantRow) {
+    const Square &leftSq(board.getSquareAt(p + Pos(0, -1)));
+    const Square &rightSq(board.getSquareAt(p + Pos(0, 1)));
     if (auto pawn = dynamic_cast<const Pawn *>(leftSq.getPiecePtr())) {
-      if (pawn->isEnPassant())
-        list.push_back(leftSq.getPos());
+      if (pawn->getColor() != color && pawn->isEnPassant())
+        list.push_back(leftSq.getPos() + Pos(1 * rowDir, 0));
     } else if (auto pawn = dynamic_cast<const Pawn *>(rightSq.getPiecePtr())) {
-      if (pawn->isEnPassant())
-        list.push_back(rightSq.getPos());
+      if (pawn->getColor() != color && pawn->isEnPassant())
+        list.push_back(rightSq.getPos() + Pos(1 * rowDir, 0));
     }
   }
+  return list;
+}
+std::vector<Pos> Pawn::getPseudoLegalPositions(const Pos &p,
+                                               const Board &board) const {
+  int rowDir = (isWhite()) ? -1 : +1;
+  std::vector<Pos> list = getAttackPositions(p, board);
+  for (int i = 0; i < list.size(); i++) {
+    const Square &attackSq(board.getSquareAt(list[i]));
+    if (attackSq.isEmpty() || attackSq.getPiece().getColor() == color) {
+      std::swap(list[i--], list[list.size() - 1]);
+      list.pop_back();
+    }
+  }
+
+  // add standard 1 square ahead move
+  if (board.getSquareAt(p + Pos(1 * rowDir, 0)).isEmpty())
+    list.push_back(p + Pos(1 * rowDir, 0));
+  // add initial 2 squares ahead move
+  if (firstMove && board.getSquareAt(p + Pos(2 * rowDir, 0)).isEmpty())
+    list.push_back(p + Pos(2 * rowDir, 0));
+
   return list;
 }
 
@@ -64,37 +75,21 @@ bool Pawn::isEnPassant() const { return enPassant; }
 
 void Pawn::move(const Move &move, Board &board) {
   int promotionRow = (this->isWhite()) ? 0 : 7;
-  int enPassantRow = (this->isWhite()) ? 4 : 3;
-  genericMove(move, board);
-  // if move is invalid, an exception is thrown
-  // meaning the rest of the code below this will not get executed
+  int rowDir = (this->isWhite()) ? -1 : 1;
+
+  Piece::move(move, board);
+  if (firstMove && Board::distance(move) == 2) {
+    enPassant = true;
+    firstMove = false;
+  } else if (firstMove)
+    firstMove = false;
 
   // handle enpassant capture
-  int moveDir = (this->isWhite()) ? -1 : 1;
-
-  Pos leftSqPos(move.from.getPos() + Pos(0, -1));
-  Pos rightSqPos(move.from.getPos() + Pos(0, +1));
-
-  if (move.from.getPos().row == enPassantRow) {
-    if (!Board::isPosOutOfBounds(leftSqPos)) {
-      Square &leftSq(board.getSquareAt(leftSqPos));
-      if (auto pawn = dynamic_cast<const Pawn *>(leftSq.getPiecePtr())) {
-        if (pawn->isEnPassant() &&
-            (leftSqPos + Pos(1 * moveDir, 0)) == move.to.getPos()) {
-          delete leftSq.getPiecePtr();
-          leftSq.setPiece(nullptr);
-        }
-      }
-    } else if (!Board::isPosOutOfBounds(rightSqPos)) {
-      Square &rightSq(board.getSquareAt(rightSqPos));
-      if (auto pawn = dynamic_cast<const Pawn *>(rightSq.getPiecePtr())) {
-        if (pawn->isEnPassant() &&
-            (rightSqPos + Pos(1 * moveDir, 0)) == move.to.getPos()) {
-          delete rightSq.getPiecePtr();
-          rightSq.setPiece(nullptr);
-        }
-      }
-    }
+  if (move.to.isEmpty() && move.capture) {
+    Square &captureSq(
+        board.getSquareAt(move.to.getPos() + Pos(-1 * rowDir, 0)));
+    delete captureSq.getPiecePtr();
+    captureSq.setPiece(nullptr);
   }
 
   // handle promotion
@@ -104,18 +99,12 @@ void Pawn::move(const Move &move, Board &board) {
     delete move.to.getPiecePtr();
     board.getSquareAt(move.to.getPos()).setPiece(new Queen(color));
   }
-
-  // post move actions
-  if (firstMove) {
-    firstMove = false;
-    enPassant = true;
-  } else
-    enPassant = false;
 }
 
 void Pawn::setEnPassant(bool enPas) { enPassant = enPas; }
 
 std::string Pawn::getIcon() const { return "♟"; }
+std::string Pawn::toString() const { return "P"; }
 
 // overload << operator
 std::ostream &operator<<(std::ostream &os, const Pawn &k) {

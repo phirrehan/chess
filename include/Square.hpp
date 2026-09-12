@@ -21,11 +21,7 @@ public:
   Square &operator=(const Square &) = delete;
   bool operator==(const Square &) const;
 
-  Square *clone() const {
-    Square *copy = new Square(*this);
-    copy->piece = (piece) ? piece->clone() : nullptr;
-    return copy;
-  }
+  Square *clone() const;
   Piece &getPiece();
   const Piece &getPiece() const;
   const Piece *getPiecePtr() const;

@@ -24,24 +24,21 @@ void Graphics::printSquare(const Square &sq, bool whiteToMove, bool selected,
                            bool isSelectedSquare) {
   string pieceStr = "";
   // set foreground color
-  if (sq.isEmpty()) {
-    if (selected && !sq.isLabelEmpty())
-      pieceStr += FG_CYAN;
-    else if (whiteToMove)
-      pieceStr += FG_WHITE;
-    else
-      pieceStr += FG_BLACK;
+  if (sq.isEmpty() || sq.getLabel() == CAN_CAPTURE) {
+    pieceStr += FG_CYAN;
   } else {
     pieceStr += (sq.getPiece().isWhite()) ? FG_WHITE : FG_BLACK;
   }
 
   // set background color
-  if (auto king = dynamic_cast<const King *>(sq.getPiecePtr()))
-    if (king->isCheck())
-      pieceStr += BG_RED;
   if (isSelectedSquare)
     pieceStr += BG_CYAN;
-  else
+  else if (auto king = dynamic_cast<const King *>(sq.getPiecePtr())) {
+    if (king->isCheck())
+      pieceStr += BG_RED;
+    else
+      pieceStr += (sq.isDark()) ? BG_GREEN : BG_YELLOW;
+  } else
     pieceStr += (sq.isDark()) ? BG_GREEN : BG_YELLOW;
 
   // set label

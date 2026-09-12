@@ -17,8 +17,12 @@ Pos Pos::operator-(const Pos &other) const {
   return Pos(row - other.row, col - other.col);
 }
 bool Pos::operator!=(const Pos &other) const {
-  return row != other.row && col != other.col;
+  return row != other.row || col != other.col;
 }
 bool Pos::operator==(const Pos &other) const {
   return row == other.row && col == other.col;
+}
+std::ostream &operator<<(std::ostream &os, const Pos &p) {
+  os << "( " << p.row << ", " << p.col << ")";
+  return os;
 }

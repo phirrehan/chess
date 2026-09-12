@@ -1,5 +1,6 @@
 #ifndef POSITION_HPP
 #define POSITION_HPP
+#include <ostream>
 
 struct Pos {
   int row;
@@ -13,5 +14,6 @@ struct Pos {
   Pos operator-(const Pos &) const;
   bool operator!=(const Pos &) const;
   bool operator==(const Pos &) const;
+  friend std::ostream &operator<<(std::ostream &, const Pos &);
 };
 #endif

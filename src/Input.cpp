@@ -11,7 +11,9 @@ std::string Input::getStr() {
 
 Pos Input::getPos() {
   std::string input = getStr();
-  if (input.size() == 1) {
+  if (input.size() == 0)
+    throw InvalidInput("input must not be empty");
+  else if (input.size() == 1) {
     if (std::tolower(input[0]) == 's')
       throw ReturnToSelection("Returning to Piece Selection");
     else if (std::tolower(input[0]) == 'q')

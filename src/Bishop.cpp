@@ -1,25 +1,21 @@
 #include "Bishop.hpp"
 #include "Board.hpp"
-#include "Position.hpp"
-#include "Square.hpp"
 
 Bishop::Bishop(PieceColor c) : Piece(c) {}
 Bishop::Bishop(const Bishop &other) : Piece(other.color) {}
 
 Bishop *Bishop::clone() const { return new Bishop(*this); }
-std::vector<Pos> Bishop::getPlausiblePosList(const Square &sq,
-                                             const Board &board) const {
+std::vector<Pos> Bishop::getAttackPositions(const Pos &p,
+                                            const Board &board) const {
   std::vector<Pos> list;
-  this->addDiagonalPos(list, sq, board);
+  addDiagPos(list, board.getSquareAt(p), board, true);
   return list;
 }
-
-std::string Bishop::getIcon() const { return "♝"; }
-
-void Bishop::move(const Move &move, Board &board) { genericMove(move, board); }
-
-// overload << operator
-std::ostream &operator<<(std::ostream &os, const Bishop &k) {
-  os << "B";
-  return os;
+std::vector<Pos> Bishop::getPseudoLegalPositions(const Pos &p,
+                                                 const Board &board) const {
+  std::vector<Pos> list;
+  addDiagPos(list, board.getSquareAt(p), board, false);
+  return list;
 }
+std::string Bishop::getIcon() const { return "♝"; }
+std::string Bishop::toString() const { return "B"; }

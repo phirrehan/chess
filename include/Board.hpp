@@ -30,8 +30,8 @@ public:
   int getMoveCount() const;
   Status getStatus() const;
 
-  bool isWhiteToMove() const;
   bool isSelected() const;
+  bool isWhiteToMove() const;
   bool isAlignedWithKing(const Square &, PieceColor, Pin) const;
   bool isMoveAvailable() const;
   static bool isPosOutOfBounds(Pos);

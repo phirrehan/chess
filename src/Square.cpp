@@ -1,14 +1,17 @@
 #include "Square.hpp"
 #include "Board.hpp"
 #include "King.hpp"
-#include <stdexcept>
+#include "Pawn.hpp"
 #include <vector>
 
 Square::Square(Piece *P, Pos p) : piece(nullptr), pos(p) { setPiece(P); }
 Square::Square(const Square &other)
     : piece(other.piece), pos(other.pos), label(other.label) {}
-bool Square::operator==(const Square &other) const {
-  return (piece == other.piece && pos == other.pos);
+bool Square::operator==(const Square &other) const { return pos == other.pos; }
+Square *Square::clone() const {
+  Square *copy = new Square(*this);
+  copy->piece = (piece) ? piece->clone() : nullptr;
+  return copy;
 }
 
 Piece &Square::getPiece() {
@@ -62,13 +65,16 @@ Move::Move(const Pos &fromPos, const Pos &toPos, const Board &board)
     : id(board.getMoveCount()), from(board.getSquareAt(fromPos)),
       to(board.getSquareAt(toPos)) {
 
-  if (to.isEmpty())
+  if (auto pawn = dynamic_cast<const Pawn *>(from.getPiecePtr())) {
+    std::vector<Pos> list = pawn->getAttackPositions(from.getPos(), board);
     capture = false;
-  else {
-    PieceColor toColor = to.getPiece().getColor();
-    PieceColor fromColor = from.getPiece().getColor();
-    capture = fromColor != toColor;
-  }
+    for (int i = 0; i < list.size(); i++) {
+      if (to.getPos() == list[i])
+        capture = true;
+    }
+  } else
+    capture = (!to.isEmpty() &&
+               from.getPiece().getColor() != to.getPiece().getColor());
 }
 Move::Move(const Move &other)
     : id(other.id), from(other.from), to(other.to), capture(other.capture) {}

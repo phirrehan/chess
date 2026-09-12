@@ -1,12 +1,10 @@
 #include "Piece.hpp"
-#include <ostream>
-struct Move;
 class King : public Piece {
 private:
   bool firstMove;
   bool check;
-  std::vector<Pos> getPlausiblePosList(const Square &,
-                                       const Board &) const override;
+  std::vector<Pos> getPseudoLegalPositions(const Pos &,
+                                           const Board &) const override;
 
 public:
   King(PieceColor);
@@ -18,10 +16,11 @@ public:
 
   bool isCheck() const;
   std::string getIcon() const override;
+  std::string toString() const override;
   std::string isFirstMove() const;
 
   std::string setFirstMove(bool);
 
-  // overload << operator
-  friend std::ostream &operator<<(std::ostream &, const King &);
+  std::vector<Pos> getAttackPositions(const Pos &,
+                                      const Board &) const override;
 };

@@ -4,7 +4,6 @@
 #include "King.hpp"
 #include "Pawn.hpp"
 #include "Square.hpp"
-#include <vector>
 
 Piece::Piece(PieceColor c) : color(c), pin(Pin::NONE) {}
 Piece::Piece(PieceColor c, Pin p) : color(c), pin(p) {}
@@ -16,89 +15,105 @@ Pin Piece::getPin() const { return pin; }
 bool Piece::isWhite() const { return color == PieceColor::WHITE; }
 
 // helper functions
-
-bool Piece::isNextSquarePlausible(std::vector<Pos> &list, const Square &sq,
-                                  const Board &board) const {
+bool Piece::isNextPosPlausible(std::vector<Pos> &list, const Square &sq,
+                               const Board &board, bool isAttack) const {
   if (sq.isEmpty()) {
     list.push_back(sq.getPos());
     return true;
-  } else if (sq.getPiece().getColor() != color) {
+  } else if (sq.getPiece().getColor() == color) {
+    return false;
+  } else {
     list.push_back(sq.getPos());
-    return false;
-  } else
-    return false;
+    if (isAttack && dynamic_cast<const King *>(sq.getPiecePtr())) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }
 void Piece::addCardinalPos(std::vector<Pos> &list, const Square &sq,
-                           const Board &board) const {
+                           const Board &board, bool isAttack) const {
   Pos p = sq.getPos();
   int r, c;
   // traverse upwards
   for (r = p.row - 1; r >= 0; r--) {
     Square curSq(board.getSquareAt({r, p.col}));
-    if (!sq.getPiece().isNextSquarePlausible(list, curSq, board))
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse downwards
   for (r = p.row + 1; r < 8; r++) {
     Square curSq(board.getSquareAt({r, p.col}));
-    if (!sq.getPiece().isNextSquarePlausible(list, curSq, board))
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse leftwards
   for (c = p.col - 1; c >= 0; c--) {
     Square curSq(board.getSquareAt({p.row, c}));
-    if (!sq.getPiece().isNextSquarePlausible(list, curSq, board))
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse rightwards
   for (c = p.col + 1; c < 8; c++) {
     Square curSq(board.getSquareAt({p.row, c}));
-    if (!sq.getPiece().isNextSquarePlausible(list, curSq, board))
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
 }
-void Piece::addDiagonalPos(std::vector<Pos> &list, const Square &sq,
-                           const Board &board) const {
+void Piece::addDiagPos(std::vector<Pos> &list, const Square &sq,
+                       const Board &board, bool isAttack) const {
   Pos p = sq.getPos();
   int r, c;
   // traverse top-left along main diagonal
   for (r = p.row - 1, c = p.col - 1; r >= 0 && c >= 0; r--, c--) {
-    Square curSq(board.getSquareAt({r, c}));
-    if (!isNextSquarePlausible(list, curSq, board))
+    const Square &curSq(board.getSquareAt({r, c}));
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse top-left along main diagonal
   for (r = p.row + 1, c = p.col + 1; r < 8 && c < 8; r++, c++) {
-    Square curSq(board.getSquareAt({r, c}));
-    if (!isNextSquarePlausible(list, curSq, board))
+    const Square &curSq(board.getSquareAt({r, c}));
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse top-right along anti diagonal
   for (r = p.row - 1, c = p.col + 1; r >= 0 && c < 8; r--, c++) {
-    Square curSq(board.getSquareAt({r, c}));
-    if (!isNextSquarePlausible(list, curSq, board))
+    const Square &curSq(board.getSquareAt({r, c}));
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
   // traverse top-left along anti diagonal
   for (r = p.row + 1, c = p.col - 1; r < 8 && c >= 0; r++, c--) {
-    Square curSq(board.getSquareAt({r, c}));
-    if (!isNextSquarePlausible(list, curSq, board))
+    const Square &curSq(board.getSquareAt({r, c}));
+    if (!isNextPosPlausible(list, curSq, board, isAttack))
       break;
   }
 }
 
-std::vector<Move> Piece::getValidMovesList(const Square &sq,
-                                           const Board &board) const {
-  std::vector<Pos> moves = sq.getPiece().getPlausiblePosList(sq, board);
-  for (int i = 0; i < moves.size(); i++) {
+std::vector<Pos> Piece::getPseudoLegalPositions(const Pos &p,
+                                                const Board &board) const {
+  std::vector<Pos> list = getAttackPositions(p, board);
+  for (int i = 0; i < list.size(); i++) {
+    const Square &curSq(board.getSquareAt(list[i]));
+    if (!curSq.isEmpty() && color == curSq.getPiece().getColor()) {
+      std::swap(list[i--], list[list.size() - 1]);
+      list.pop_back();
+    }
   }
-  Square kingSq(board.getSquareAt(board.getKingPos(sq.getPiece().getColor())));
+  return list;
+}
+
+std::vector<Move> Piece::getLegalMoves(const Square &sq,
+                                       const Board &board) const {
+  std::vector<Pos> moves =
+      sq.getPiece().getPseudoLegalPositions(sq.getPos(), board);
+  const Square &kingSq(
+      board.getSquareAt(board.getKingPos(sq.getPiece().getColor())));
   auto king = dynamic_cast<const King *>(kingSq.getPiecePtr());
 
   for (int i = 0; i < moves.size(); i++) {
-    Square curSq(board.getSquareAt(moves[i]));
+    const Square &curSq(board.getSquareAt(moves[i]));
     bool valid =
-        (curSq.isEmpty() || color != curSq.getPiece().getColor()) &&
         (sq.getPiece().getPin() == Pin::NONE ||
          board.isAlignedWithKing(curSq, color, sq.getPiece().getPin())) &&
         (!king->isCheck() ||
@@ -112,9 +127,9 @@ std::vector<Move> Piece::getValidMovesList(const Square &sq,
   return sq.convertPosToMoveList(moves, board);
 }
 
-bool Piece::isMoveValid(const Move &move, const Board &board) const {
+bool Piece::isMoveLegal(const Move &move, const Board &board) const {
   std::vector<Move> list =
-      move.from.getPiecePtr()->getValidMovesList(move.from, board);
+      move.from.getPiecePtr()->getLegalMoves(move.from, board);
   for (int i = 0; i < list.size(); i++) {
     if (move == list[i])
       return true;
@@ -123,30 +138,34 @@ bool Piece::isMoveValid(const Move &move, const Board &board) const {
 }
 
 bool Piece::hasMoveAvailable(const Square &curSq, const Board &board) const {
-  std::vector<Move> list = curSq.getPiece().getValidMovesList(curSq, board);
+  std::vector<Move> list = curSq.getPiece().getLegalMoves(curSq, board);
   return (list.size() != 0);
 }
 
-void Piece::genericMove(const Move &move, Board &board) {
+void Piece::makeMove(const Move &move, Board &board) {
   Square &moveFromSq(board.getSquareAt(move.from.getPos()));
   Square &moveToSq(board.getSquareAt(move.to.getPos()));
-  if (!isMoveValid(move, board))
-    throw InvalidMove("move is invalid. try again");
-  // check if move is capturing
+
   if (auto ptr = move.to.getPiecePtr())
     delete ptr;
   moveToSq.setPiece(moveFromSq.getPiecePtr());
   moveFromSq.setPiece(nullptr);
 
-  // update board
-  // update board variables
-  if (!board.isWhiteToMove())
-    board.incrementMoveCount();
-
   // update king position if the king moved
   if (dynamic_cast<King *>(moveToSq.getPiecePtr())) {
     board.setKingPos(color, move.to.getPos());
   }
+}
+
+void Piece::move(const Move &move, Board &board) {
+  if (!isMoveLegal(move, board))
+    throw InvalidMove("move is invalid. try again");
+
+  makeMove(move, board);
+  // update board
+  // update board variables
+  if (!board.isWhiteToMove())
+    board.incrementMoveCount();
 
   // update game status
   board.updateStatus();
@@ -154,13 +173,13 @@ void Piece::genericMove(const Move &move, Board &board) {
 
   // update loop
   for (int i = 0; i < 64; i++) {
-    Square curSq(board.getSquareAt({i / 8, i % 8}));
+    Square &curSq(board.getSquareAt({i / 8, i % 8}));
     // update pin
     if (!curSq.isEmpty())
       board.updatePin();
     // update pawn's enPassant variable
     if (auto pawn = dynamic_cast<Pawn *>(curSq.getPiecePtr())) {
-      if (pawn->isEnPassant() && curSq.getPos() != move.to.getPos())
+      if (pawn->isEnPassant())
         pawn->setEnPassant(false);
     }
   }
@@ -168,14 +187,11 @@ void Piece::genericMove(const Move &move, Board &board) {
 
 bool Piece::isThreateningKing(const Square &curSq, const Square &kingSq,
                               const Board &board) const {
-  if (color == kingSq.getPiece().getColor())
+  if (auto king = dynamic_cast<const King *>(curSq.getPiecePtr()))
     return false;
-  else if (auto king = dynamic_cast<const King *>(curSq.getPiecePtr()))
-    return false;
-
-  std::vector<Move> list = getValidMovesList(curSq, board);
-  for (int i = 0; i < list.size(); i++) {
-    if (list[i].to == kingSq)
+  std::vector<Pos> list = getAttackPositions(curSq.getPos(), board);
+  for (auto attackPos : list) {
+    if (attackPos == kingSq.getPos())
       return true;
   }
   return false;
