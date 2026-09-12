@@ -18,6 +18,15 @@ cmake -B build
 cmake --build build
 ```
 
+If you are on `Windows` and have `MinGW`, then instead use the following:
+
+```
+cmake -B build -G "MinGW Makefiles"
+cmake --build build
+```
+
+> Ensure cmake and c++ compiler are added in PATH
+
 Run the binary:
 
 ```
