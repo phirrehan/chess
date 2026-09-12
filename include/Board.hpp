@@ -38,6 +38,7 @@ public:
   bool isCapturable(PieceColor, const Square &) const;
   bool canCastle(const Move &) const;
   bool isCheckMate(PieceColor) const;
+  bool isStaleMate() const;
   bool canMoveRemoveCheck(const Move &) const;
   bool hasObstructions(const Pos &, const Pos &, Pin) const;
 

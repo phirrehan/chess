@@ -9,7 +9,6 @@
 #include "Rook.hpp"
 #include "Square.hpp"
 #include <cmath>
-#include <vector>
 
 Board::Board()
     : whiteKingPos({7, 4}), blackKingPos({0, 4}), whiteToMove(true),
@@ -266,6 +265,23 @@ bool Board::isCheckMate(PieceColor color) const {
   return true;
 }
 
+bool Board::isStaleMate() const {
+  if (!isMoveAvailable())
+    return true;
+
+  int whitePieceCount = 0;
+  int blackPieceCount = 0;
+  for (const Square *sqPtr : arr) {
+    if (whitePieceCount > 1 || blackPieceCount > 1)
+      return false;
+    else if (sqPtr->getPiece().isWhite())
+      whitePieceCount++;
+    else
+      blackPieceCount++;
+  }
+  return true;
+}
+
 void Board::markAvailableMoves(const Square &sq) {
   std::vector<Move> moves = sq.getPiece().getLegalMoves(sq, *this);
   for (auto move : moves) {
@@ -311,7 +327,7 @@ void Board::updateStatus() {
   // update game status
   if (isCheckMate(enemyKing->getColor())) {
     status = (whiteToMove) ? Status::WHITE_WON : Status::BLACK_WON;
-  } else if (!isMoveAvailable()) {
+  } else if (isStaleMate()) {
     status = Status::STALEMATE;
   }
 }
