@@ -4,6 +4,8 @@
 #include "King.hpp"
 #include "Pawn.hpp"
 #include "Square.hpp"
+#include <iostream>
+#include <ostream>
 
 Piece::Piece(PieceColor c) : color(c), pin(Pin::NONE) {}
 Piece::Piece(PieceColor c, Pin p) : color(c), pin(p) {}
@@ -31,62 +33,24 @@ bool Piece::isNextPosPlausible(std::vector<Pos> &list, const Square &sq,
     }
   }
 }
-void Piece::addCardinalPos(std::vector<Pos> &list, const Square &sq,
-                           const Board &board, bool isAttack) const {
-  Pos p = sq.getPos();
-  int r, c;
-  // traverse upwards
-  for (r = p.row - 1; r >= 0; r--) {
-    Square curSq(board.getSquareAt({r, p.col}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse downwards
-  for (r = p.row + 1; r < 8; r++) {
-    Square curSq(board.getSquareAt({r, p.col}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse leftwards
-  for (c = p.col - 1; c >= 0; c--) {
-    Square curSq(board.getSquareAt({p.row, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse rightwards
-  for (c = p.col + 1; c < 8; c++) {
-    Square curSq(board.getSquareAt({p.row, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-}
-void Piece::addDiagPos(std::vector<Pos> &list, const Square &sq,
-                       const Board &board, bool isAttack) const {
-  Pos p = sq.getPos();
-  int r, c;
-  // traverse top-left along main diagonal
-  for (r = p.row - 1, c = p.col - 1; r >= 0 && c >= 0; r--, c--) {
-    const Square &curSq(board.getSquareAt({r, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse top-left along main diagonal
-  for (r = p.row + 1, c = p.col + 1; r < 8 && c < 8; r++, c++) {
-    const Square &curSq(board.getSquareAt({r, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse top-right along anti diagonal
-  for (r = p.row - 1, c = p.col + 1; r >= 0 && c < 8; r--, c++) {
-    const Square &curSq(board.getSquareAt({r, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
-  }
-  // traverse top-left along anti diagonal
-  for (r = p.row + 1, c = p.col - 1; r < 8 && c >= 0; r++, c--) {
-    const Square &curSq(board.getSquareAt({r, c}));
-    if (!isNextPosPlausible(list, curSq, board, isAttack))
-      break;
+void Piece::addSlidingPositions(std::vector<Pos> &list, const Square &sq,
+                                const Board &board, bool isDiag,
+                                bool isAttack) const {
+  const Pos p = sq.getPos();
+  const Pos *directions = isDiag ? DIAG_DIRS : CARD_DIRS;
+
+  for (int i = 0; i < 4; i++) {
+    const Pos dir = directions[i];
+    int r = p.row + dir.row;
+    int c = p.col + dir.col;
+
+    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+      const Square &curSq = board.getSquareAt({r, c});
+      if (!isNextPosPlausible(list, curSq, board, isAttack))
+        break;
+      r += dir.row;
+      c += dir.col;
+    }
   }
 }
 
@@ -146,7 +110,7 @@ void Piece::makeMove(const Move &move, Board &board) {
   Square &moveFromSq(board.getSquareAt(move.from.getPos()));
   Square &moveToSq(board.getSquareAt(move.to.getPos()));
 
-  if (auto ptr = move.to.getPiecePtr())
+  if (Piece *ptr = moveToSq.getPiecePtr())
     delete ptr;
   moveToSq.setPiece(moveFromSq.getPiecePtr());
   moveFromSq.setPiece(nullptr);
@@ -162,26 +126,13 @@ void Piece::move(const Move &move, Board &board) {
     throw InvalidMove("move is invalid. try again");
 
   makeMove(move, board);
-  // update board
-  // update board variables
-  if (!board.isWhiteToMove())
-    board.incrementMoveCount();
-
-  // update game status
-  board.updateStatus();
-  board.toggleWhiteToMove();
-
-  // update loop
-  for (int i = 0; i < 64; i++) {
-    Square &curSq(board.getSquareAt({i / 8, i % 8}));
-    // update pin
-    if (!curSq.isEmpty())
-      board.updatePin();
-    // update pawn's enPassant variable
-    if (auto pawn = dynamic_cast<Pawn *>(curSq.getPiecePtr())) {
-      if (pawn->isEnPassant())
-        pawn->setEnPassant(false);
-    }
+  // do not update if the pawn is promoting. the update should happen after
+  // promotion in this case
+  int promotionRow = (isWhite()) ? 0 : 7;
+  const Square &pawnSq(board.getSquareAt(move.to.getPos()));
+  if (dynamic_cast<const Pawn *>(pawnSq.getPiecePtr()) == nullptr ||
+      pawnSq.getPos().row != promotionRow) {
+    board.updateBoard();
   }
 }
 
@@ -199,3 +150,8 @@ bool Piece::isThreateningKing(const Square &curSq, const Square &kingSq,
 }
 
 void Piece::setPin(Pin p) { pin = p; }
+
+std::ostream &operator<<(std::ostream &os, const Piece &piece) {
+  os << piece.toString();
+  return os;
+}

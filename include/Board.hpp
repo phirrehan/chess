@@ -56,6 +56,7 @@ public:
   void unselect();
   void updateStatus();
   void updatePin();
+  void updateBoard();
   void move(const Move &);
 
   ~Board();

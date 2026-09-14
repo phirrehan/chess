@@ -8,15 +8,15 @@ Queen *Queen::clone() const { return new Queen(*this); }
 std::vector<Pos> Queen::getAttackPositions(const Pos &p,
                                            const Board &board) const {
   std::vector<Pos> list;
-  this->addCardinalPos(list, board.getSquareAt(p), board, true);
-  this->addDiagPos(list, board.getSquareAt(p), board, true);
+  addSlidingPositions(list, board.getSquareAt(p), board, false, true);
+  addSlidingPositions(list, board.getSquareAt(p), board, true, true);
   return list;
 }
 std::vector<Pos> Queen::getPseudoLegalPositions(const Pos &p,
                                                 const Board &board) const {
   std::vector<Pos> list;
-  this->addCardinalPos(list, board.getSquareAt(p), board, false);
-  this->addDiagPos(list, board.getSquareAt(p), board, false);
+  addSlidingPositions(list, board.getSquareAt(p), board, false, true);
+  addSlidingPositions(list, board.getSquareAt(p), board, true, true);
   return list;
 }
 

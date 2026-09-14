@@ -20,10 +20,8 @@ protected:
   // getPlausiblePosList() across various classes
   bool isNextPosPlausible(std::vector<Pos> &, const Square &, const Board &,
                           bool) const;
-  void addCardinalPos(std::vector<Pos> &, const Square &, const Board &,
-                      bool) const;
-  void addDiagPos(std::vector<Pos> &, const Square &, const Board &,
-                  bool) const;
+  void addSlidingPositions(std::vector<Pos> &, const Square &, const Board &,
+                           bool, bool) const;
   virtual std::vector<Pos> getPseudoLegalPositions(const Pos &,
                                                    const Board &) const;
 
@@ -50,6 +48,7 @@ public:
   void setPin(Pin);
 
   std::vector<Move> getLegalMoves(const Square &, const Board &) const;
+  friend std::ostream &operator<<(std::ostream &os, const Piece &piece);
   virtual ~Piece() = default;
 };
 #endif

@@ -9,13 +9,13 @@ Rook *Rook::clone() const { return new Rook(*this); }
 std::vector<Pos> Rook::getAttackPositions(const Pos &p,
                                           const Board &board) const {
   std::vector<Pos> list;
-  this->addCardinalPos(list, board.getSquareAt(p), board, true);
+  addSlidingPositions(list, board.getSquareAt(p), board, false, true);
   return list;
 }
 std::vector<Pos> Rook::getPseudoLegalPositions(const Pos &p,
                                                const Board &board) const {
   std::vector<Pos> list;
-  addCardinalPos(list, board.getSquareAt(p), board, false);
+  addSlidingPositions(list, board.getSquareAt(p), board, false, false);
   return list;
 }
 

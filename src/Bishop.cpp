@@ -8,13 +8,13 @@ Bishop *Bishop::clone() const { return new Bishop(*this); }
 std::vector<Pos> Bishop::getAttackPositions(const Pos &p,
                                             const Board &board) const {
   std::vector<Pos> list;
-  addDiagPos(list, board.getSquareAt(p), board, true);
+  addSlidingPositions(list, board.getSquareAt(p), board, true, true);
   return list;
 }
 std::vector<Pos> Bishop::getPseudoLegalPositions(const Pos &p,
                                                  const Board &board) const {
   std::vector<Pos> list;
-  addDiagPos(list, board.getSquareAt(p), board, false);
+  addSlidingPositions(list, board.getSquareAt(p), board, true, false);
   return list;
 }
 std::string Bishop::getIcon() const { return "♝"; }

@@ -16,4 +16,7 @@ struct Pos {
   bool operator==(const Pos &) const;
   friend std::ostream &operator<<(std::ostream &, const Pos &);
 };
+
+const Pos CARD_DIRS[4] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+const Pos DIAG_DIRS[4] = {{-1, -1}, {1, 1}, {-1, 1}, {1, -1}};
 #endif

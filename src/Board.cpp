@@ -103,7 +103,7 @@ bool Board::hasObstructions(const Pos &p1, const Pos &p2, Pin pin) const {
   int r, c;
   int minR = std::min(p1.row, p2.row);
   int minC = std::min(p1.col, p2.col);
-  int maxR = std::max(p1.row, p2.col);
+  int maxR = std::max(p1.row, p2.row);
   int maxC = std::max(p1.col, p2.col);
 
   switch (pin) {
@@ -168,7 +168,7 @@ bool Board::isAlignedWithKing(const Square &sq, PieceColor color,
     return dx == dy;
     break;
   case Pin::DIAGONAL_ANTI:
-    return dx == dy;
+    return dx == -dy;
     break;
   default:
     throw std::invalid_argument("expected pin to be not NONE.");
@@ -274,6 +274,8 @@ bool Board::isStaleMate() const {
   for (const Square *sqPtr : arr) {
     if (whitePieceCount > 1 || blackPieceCount > 1)
       return false;
+    if (sqPtr->isEmpty())
+      continue;
     else if (sqPtr->getPiece().isWhite())
       whitePieceCount++;
     else
@@ -338,11 +340,12 @@ void Board::move(const Move &move) {
 }
 
 bool Board::hasPinUpdated(Pos p, Square &sq, Pin pin) {
-  const Square &curSq(getSquareAt(p));
-  bool update;
   if (isPosOutOfBounds(p))
     return true;
-  else if (curSq.isEmpty())
+  bool update;
+  const Square &curSq(getSquareAt(p));
+
+  if (curSq.isEmpty())
     update = false;
   else if (curSq.getPiece().getColor() == sq.getPiece().getColor())
     update = true;
@@ -387,12 +390,14 @@ void Board::updatePin() {
     int colDir = moveDir(diff.col);
     int startRow = sqPos.row + 1 * rowDir;
     int startCol = sqPos.col + 1 * colDir;
-    int r = startRow, c = startCol;
+    int r, c;
 
     sq.getPiece().setPin(Pin::NONE);
     Pin pinList[4] = {Pin::HORIZONTAL, Pin::VERTICAL, Pin::DIAGONAL_MAIN,
                       Pin::DIAGONAL_ANTI};
     for (int i = 0; i < 4; i++) {
+      r = startRow;
+      c = startCol;
       if (isAlignedWithKing(sq, color, pinList[i]) &&
           !hasObstructions(sqPos, kingPos, pinList[i])) {
 
@@ -408,6 +413,27 @@ void Board::updatePin() {
           c += 1 * colDir;
         }
       }
+    }
+  }
+}
+
+void Board::updateBoard() {
+  // update board variables
+  if (!isWhiteToMove())
+    incrementMoveCount();
+
+  // update game status
+  updateStatus();
+  toggleWhiteToMove();
+  updatePin();
+
+  // update loop
+  for (int i = 0; i < 64; i++) {
+    Square &curSq(getSquareAt({i / 8, i % 8}));
+    // update pawn's enPassant variable
+    if (auto pawn = dynamic_cast<Pawn *>(curSq.getPiecePtr())) {
+      if (pawn->isEnPassant())
+        pawn->setEnPassant(false);
     }
   }
 }

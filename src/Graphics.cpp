@@ -6,20 +6,6 @@
 
 using namespace std;
 
-const string BG_GREEN = "\x1B[48;2;118;150;85m";
-const string BG_YELLOW = "\x1B[48;2;219;171;87m";
-const string BG_GREY = "\x1B[48;2;58;59;69m";
-const string BG_RED = "\x1B[41m";
-const string BG_CYAN = "\x1B[46m";
-const string FG_WHITE = "\x1B[37m";
-const string FG_BLACK = "\x1B[30m";
-const string FG_CYAN = "\x1B[36m";
-const string DEFAULT_STYLE = "\x1B[0m";
-const string CLEAR = "\x1B[2J";
-const string MOVE_CURSOR_TO_HOME = "\x1B[H";
-const string ENABLE_ALT_BUFFER = "\x1B[?1049h";
-const string DISABLE_ALT_BUFFER = "\x1B[?1049l";
-
 void Graphics::printSquare(const Square &sq, bool whiteToMove, bool selected,
                            bool isSelectedSquare) {
   string pieceStr = "";
